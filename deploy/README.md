@@ -147,7 +147,19 @@ sudo systemctl restart cangku
 | 看日志 | `journalctl -u cangku -n 50 --no-pager` |
 | 重启 | `systemctl restart cangku` |
 | 手动备份数据 | `cp /opt/cangku/data.json /opt/cangku/backups/data-$(date +%F).json` |
-| 更新程序 | 上传新 `server.js` 后 `systemctl restart cangku` |
+| 更新程序 | `bash deploy/update.sh`（保留访问码与数据，见下） |
+| 重装/迁移 | `sudo ACCESS_CODE=你的访问码 bash deploy/install.sh` |
+
+**日常更新用 `update.sh`，不要用 `install.sh`**：
+
+```bash
+cd /opt/cg
+sudo bash deploy/update.sh
+```
+
+`install.sh` 每次都会重写 systemd 配置，重跑时如果忘了带 `ACCESS_CODE`，
+访问码会被清空，等于把仓库对公网敞开。
+`update.sh` 只替换 `server.js` 和 `public/`，不动访问控制与数据。
 
 **备份建议**：数据只有一个文件，最省事的做法是每天自动复制一份。
 
