@@ -1,0 +1,38 @@
+仓库管理 · 网站源码包
+========================
+
+包含内容
+--------
+  server.js            服务端（Node，零依赖）
+  public/index.html    前端页面（手机/电脑自适应）
+  deploy/install.sh    一键部署脚本（Ubuntu / Debian）
+  deploy/README.md     完整部署手册（含常见问题）
+  快速开始.txt          本文件
+
+在本地试跑（需要 Node 18+）
+--------------------------
+  cd 本目录
+  node server.js
+  然后浏览器打开 http://127.0.0.1:8766
+
+部署到云服务器（Ubuntu 22.04 / 24.04）
+------------------------------------
+  上传本目录到服务器，例如 /opt/cangku-server
+  然后执行：
+    cd /opt/cangku-server
+    sudo ACCESS_CODE=你的密码 bash deploy/install.sh
+
+  最后到云控制台「安全组/防火墙」放行 TCP 8766，
+  浏览器访问 http://服务器IP:8766
+
+数据在哪
+--------
+  运行后生成 data.json（与 server.js 同目录），
+  旁边会有 data.json.bak 作为上一版备份。
+  这个文件就是全部数据，注意备份。
+
+注意
+----
+  · ACCESS_CODE 请用字母+数字，不要有中文、空格、特殊符号
+  · 不设置 ACCESS_CODE 时任何人都能访问和修改数据
+  · 详细说明见 deploy/README.md

@@ -1,0 +1,864 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F3F4F6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="仓库管理">
+<title>仓库管理</title>
+<style>
+  :root{
+    --bg:#F3F4F6; --card:#FFFFFF; --ink:#15181E; --muted:#6B7280;
+    --line:#E5E7EB; --brand:#1F5FA8; --brand-soft:#E8F0FA;
+    --warn:#B45309; --warn-soft:#FEF3E2; --danger:#B42318; --ok:#15803D;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    font-size:15px;line-height:1.5;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 40px);
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:0 16px}
+
+  .banner{
+    background:#FFF4E5;color:#8A4B00;font-size:13px;text-align:center;
+    padding:8px 12px;border-bottom:1px solid #F3D6AE;
+  }
+  .banner[hidden]{display:none}
+
+  .top{
+    position:sticky;top:0;z-index:20;
+    background:rgba(243,244,246,.94);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 12px) 0 0;
+  }
+  .top-in{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-bottom:12px}
+  .title{font-size:19px;font-weight:700;letter-spacing:.01em}
+  .title small{display:block;font-size:12px;font-weight:400;color:var(--muted);letter-spacing:0;cursor:pointer}
+  .title small b{color:var(--brand);font-weight:600}
+  .seg{display:flex;background:#E7E9ED;border-radius:999px;padding:3px}
+  .seg button{
+    border:0;background:transparent;color:var(--muted);font-family:inherit;
+    font-size:14px;padding:7px 16px;border-radius:999px;cursor:pointer;
+  }
+  .seg button[aria-selected="true"]{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}
+  .stat{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .stat b{display:block;font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .stat span{font-size:12px;color:var(--muted)}
+  .stat.warn b{color:var(--warn)}
+  .stat.warn{background:var(--warn-soft)}
+
+  .bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .search{
+    flex:1;min-width:150px;display:flex;align-items:center;gap:8px;
+    background:var(--card);border:1px solid var(--line);border-radius:12px;padding:0 12px;
+  }
+  .search input{border:0;outline:none;background:transparent;font-size:15px;padding:11px 0;width:100%;font-family:inherit;color:var(--ink)}
+  .chip{
+    border:1px solid var(--line);background:var(--card);color:var(--muted);
+    font-size:13px;padding:0 14px;border-radius:12px;cursor:pointer;font-family:inherit;
+    display:flex;align-items:center;gap:6px;
+  }
+  .chip[aria-pressed="true"]{background:var(--warn-soft);border-color:#F0C9A0;color:var(--warn);font-weight:600}
+  .btn{
+    border:0;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;
+    padding:11px 16px;cursor:pointer;white-space:nowrap;
+  }
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:active{opacity:.9}
+  .btn-ghost{background:var(--card);border:1px solid var(--line);color:var(--ink);font-weight:500}
+  .btn-ghost:active{background:#F9FAFB}
+  .btn-danger{background:#FEE4E2;color:var(--danger);font-weight:600}
+  .btn-sm{padding:7px 12px;font-size:13px;border-radius:10px}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .listbox{background:var(--card);border-radius:var(--radius);overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04)}
+  .headrow,.row{
+    display:grid;grid-template-columns:96px minmax(0,1fr) 110px 84px 176px;
+    gap:10px;align-items:center;padding:12px 16px;
+  }
+  .headrow{
+    font-size:12px;color:var(--muted);letter-spacing:.04em;
+    background:#FAFBFC;border-bottom:1px solid var(--line);
+  }
+  .row{border-bottom:1px solid #F1F2F4}
+  .row:last-child{border-bottom:0}
+  .row.low{background:#FFFCF7}
+  .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--muted)}
+  .main .name{font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .main .meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .qty{font-variant-numeric:tabular-nums;font-weight:700;font-size:17px;text-align:right}
+  .qty small{font-size:12px;font-weight:400;color:var(--muted);margin-left:3px}
+  .status{font-size:12px}
+  .tag{display:inline-block;padding:3px 8px;border-radius:7px;font-weight:600}
+  .tag-low{background:var(--warn-soft);color:var(--warn)}
+  .tag-ok{background:#EAF6EE;color:var(--ok)}
+  .tag-zero{background:#FDE8E6;color:var(--danger)}
+  .ops{display:flex;gap:6px;justify-content:flex-end}
+  .ops button{
+    border:1px solid var(--line);background:#fff;color:var(--ink);
+    font-family:inherit;font-size:13px;padding:6px 10px;border-radius:9px;cursor:pointer;
+  }
+  .ops button:hover{background:#F9FAFB}
+  .ops .in{color:var(--ok);border-color:#C7E5D1}
+  .ops .in:hover{background:#F1F9F3}
+  .ops .out{color:var(--brand);border-color:#C3D8F0}
+  .ops .out:hover{background:#F2F7FD}
+  .ops .edit{color:var(--muted)}
+
+  .dayhd{font-size:12px;color:var(--muted);padding:16px 4px 8px;display:flex;justify-content:space-between}
+  .flow{display:flex;align-items:center;gap:12px;background:var(--card);border-radius:12px;padding:11px 14px;margin-bottom:8px}
+  .badge{
+    width:34px;height:34px;flex:0 0 34px;border-radius:10px;display:grid;place-items:center;
+    font-size:13px;font-weight:700;
+  }
+  .badge.in{background:#EAF6EE;color:var(--ok)}
+  .badge.out{background:var(--brand-soft);color:var(--brand)}
+  .flow .who{flex:1;min-width:0}
+  .flow .who b{display:block;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .flow .who span{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+  .flow .num{font-variant-numeric:tabular-nums;font-weight:700;font-size:15px}
+  .flow .num.in{color:var(--ok)}
+  .flow .num.out{color:var(--brand)}
+  .flow .del{border:0;background:transparent;color:#C6C8CC;font-size:18px;padding:4px 2px;cursor:pointer}
+  .flow .del:hover{color:var(--danger)}
+
+  .empty{text-align:center;padding:56px 16px;color:var(--muted)}
+  .empty .big{font-size:40px;margin-bottom:12px}
+  .empty p{margin:0 0 16px;font-size:14px;line-height:1.7}
+
+  .scrim{
+    position:fixed;inset:0;background:rgba(16,20,28,.42);z-index:50;
+    display:flex;align-items:flex-end;justify-content:center;
+    animation:fade .18s ease;
+  }
+  .scrim[hidden]{display:none}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  @keyframes up{from{transform:translateY(18px);opacity:.6}to{transform:translateY(0);opacity:1}}
+  .sheet{
+    background:var(--card);width:100%;max-width:520px;border-radius:20px 20px 0 0;
+    padding:18px 18px calc(env(safe-area-inset-bottom) + 18px);
+    animation:up .2s ease;max-height:92vh;overflow:auto;
+  }
+  @media (min-width:640px){
+    .scrim{align-items:center;padding:24px}
+    .sheet{border-radius:20px;animation:none}
+  }
+  .sheet h3{margin:0 0 4px;font-size:17px}
+  .sheet .sub{font-size:13px;color:var(--muted);margin:0 0 16px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+  .field input,.field select{
+    width:100%;border:1px solid var(--line);border-radius:11px;background:#FAFBFC;
+    padding:11px 12px;font-size:15px;font-family:inherit;color:var(--ink);outline:none;
+  }
+  .field input:focus,.field select:focus{border-color:var(--brand);background:#fff}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .switch{display:flex;background:#EDEFF2;border-radius:12px;padding:3px;margin-bottom:14px}
+  .switch button{
+    flex:1;border:0;background:transparent;font-family:inherit;font-size:14px;font-weight:600;
+    color:var(--muted);padding:9px;border-radius:10px;cursor:pointer;
+  }
+  .switch button[aria-selected="true"]{background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.07)}
+  .switch button.in[aria-selected="true"]{color:var(--ok)}
+  .switch button.out[aria-selected="true"]{color:var(--brand)}
+  .sheet-foot{display:flex;gap:8px;margin-top:16px}
+  .sheet-foot .btn{flex:1;padding:13px}
+  .hintbox{
+    background:#F7F8FA;border-radius:11px;padding:10px 12px;font-size:12px;color:var(--muted);
+    margin-bottom:14px;line-height:1.6;
+  }
+  .hintbox b{color:var(--ink)}
+
+  .toast{
+    position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);
+    transform:translate(-50%,16px);opacity:0;pointer-events:none;
+    background:#15181E;color:#fff;font-size:14px;padding:10px 18px;border-radius:999px;
+    transition:opacity .2s,transform .2s;z-index:99;max-width:86vw;text-align:center;
+  }
+  .toast.show{opacity:.95;transform:translate(-50%,0)}
+
+  @media (max-width:720px){
+    .headrow{display:none}
+    .row{
+      grid-template-columns:minmax(0,1fr) auto;
+      grid-template-areas:"main qty" "code status" "ops ops";
+      gap:6px 10px;padding:14px 16px;
+    }
+    .row .main{grid-area:main}
+    .row .qty{grid-area:qty;font-size:18px}
+    .row .code{grid-area:code}
+    .row .status{grid-area:status;text-align:right}
+    .row .ops{grid-area:ops;justify-content:flex-start;margin-top:6px}
+    .stats{grid-template-columns:1fr 1fr;gap:8px}
+    .stats .stat:first-child{grid-column:1/-1}
+    .title{font-size:17px}
+  }
+</style>
+</head>
+<body>
+
+<div class="banner" id="offlineBanner" hidden>⚠️ 连不上服务器，正在重试…</div>
+
+<div class="top">
+  <div class="wrap">
+    <div class="top-in">
+      <div class="title">仓库管理
+        <small id="subtitle">正在连接…</small>
+      </div>
+      <div class="seg" role="tablist">
+        <button id="tabStock" role="tab" aria-selected="true">库存</button>
+        <button id="tabFlow" role="tab" aria-selected="false">流水</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="stats">
+    <div class="stat"><b id="sKinds">0</b><span>物料种类</span></div>
+    <div class="stat"><b id="sTotal">0</b><span>库存总量</span></div>
+    <div class="stat warn"><b id="sLow">0</b><span>低库存预警</span></div>
+  </div>
+
+  <div class="bar">
+    <div class="search">
+      <span aria-hidden="true">🔍</span>
+      <input id="q" placeholder="搜编码或名称" autocomplete="off">
+    </div>
+    <button class="chip" id="lowOnly" aria-pressed="false">仅看预警</button>
+    <button class="btn btn-ghost" id="exportBtn">导出</button>
+    <button class="btn btn-primary" id="addBtn">＋ 新增物料</button>
+  </div>
+
+  <div id="stockView"></div>
+  <div id="flowView" hidden></div>
+</div>
+
+<div class="scrim" id="scrimItem" hidden>
+  <div class="sheet">
+    <h3 id="itemTitle">新增物料</h3>
+    <p class="sub">编码建议用 M-001 这种格式，方便对齐其它系统</p>
+    <form id="itemForm" novalidate>
+      <div class="grid2">
+        <div class="field"><label>编码 *</label><input id="fCode" maxlength="24" autocomplete="off" placeholder="M-001"></div>
+        <div class="field"><label>单位</label><input id="fUnit" maxlength="8" autocomplete="off" placeholder="个"></div>
+      </div>
+      <div class="field"><label>名称 *</label><input id="fName" maxlength="40" autocomplete="off" placeholder="六角螺丝 M6"></div>
+      <div class="field"><label>规格</label><input id="fSpec" maxlength="60" autocomplete="off" placeholder="M6 × 20mm 不锈钢"></div>
+      <div class="grid2">
+        <div class="field"><label>安全库存（低于此值预警）</label><input id="fSafe" type="number" step="any" min="0" placeholder="0"></div>
+        <div class="field"><label>期初库存</label><input id="fInit" type="number" step="any" min="0" placeholder="0"></div>
+      </div>
+      <div class="sheet-foot">
+        <button type="button" class="btn btn-ghost" id="itemCancel">取消</button>
+        <button type="submit" class="btn btn-primary" id="itemSave">保存</button>
+      </div>
+      <button type="button" class="btn btn-danger" id="itemDelete" style="width:100%;margin-top:10px" hidden>删除这个物料</button>
+    </form>
+  </div>
+</div>
+
+<div class="scrim" id="scrimMove" hidden>
+  <div class="sheet">
+    <h3 id="moveTitle">入库</h3>
+    <p class="sub" id="moveSub"></p>
+    <div class="hintbox" id="moveHint"></div>
+    <form id="moveForm" novalidate>
+      <div class="switch">
+        <button type="button" class="in" id="swIn" aria-selected="true">＋ 入库</button>
+        <button type="button" class="out" id="swOut" aria-selected="false">－ 出库</button>
+      </div>
+      <div class="grid2">
+        <div class="field"><label>数量 *</label><input id="mQty" type="number" step="any" min="0" inputmode="decimal" placeholder="0"></div>
+        <div class="field"><label>日期</label><input id="mDate" type="date"></div>
+      </div>
+      <div class="field"><label>备注</label><input id="mNote" maxlength="40" autocomplete="off" placeholder="供应商送货 / 车间领料"></div>
+      <div class="sheet-foot">
+        <button type="button" class="btn btn-ghost" id="moveCancel">取消</button>
+        <button type="submit" class="btn btn-primary" id="moveSubmit">确认入库</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = {
+    items: [],
+    records: [],
+    version: 0,
+    view: "stock",
+    q: "",
+    lowOnly: false,
+    editingId: null,
+    moveItemId: null,
+    moveType: "in",
+    user: "",
+    online: true,
+    busy: false
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return n < 10 ? "0" + n : "" + n; }
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function fmtQty(n) {
+    var v = Math.round(n * 1000) / 1000;
+    return String(v);
+  }
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function dayLabel(dateStr) {
+    var d = new Date(dateStr + "T00:00:00");
+    var names = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    var base = (d.getMonth() + 1) + "月" + d.getDate() + "日 · " + names[d.getDay()];
+    return dateStr === today() ? "今天 · " + base : base;
+  }
+
+  /* ---------- 与服务端通信 ---------- */
+
+  function setOnline(ok) {
+    state.online = ok;
+    $("offlineBanner").hidden = ok;
+  }
+
+  async function request(path, method, body) {
+    var opts = { method: method || "GET", headers: {} };
+    if (body !== undefined) {
+      opts.headers["content-type"] = "application/json";
+      opts.body = JSON.stringify(body);
+    }
+    var res = await fetch(path, opts);
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok || !data.ok) {
+      var err = new Error(data.error || ("请求失败 " + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function applyState(next) {
+    if (!next) return;
+    state.items = next.items || [];
+    state.records = next.records || [];
+    state.version = next.version || 0;
+    renderAll();
+  }
+
+  async function refresh(initial) {
+    try {
+      var data = await request("/api/state", "GET");
+      setOnline(true);
+      if (initial || data.state.version !== state.version) applyState(data.state);
+      else renderSubtitle();
+      return true;
+    } catch (e) {
+      setOnline(false);
+      if (initial) $("subtitle").textContent = "连不上服务器";
+      return false;
+    }
+  }
+
+  async function mutate(path, method, body) {
+    if (state.busy) return false;
+    state.busy = true;
+    try {
+      var data = await request(path, method, body);
+      setOnline(true);
+      applyState(data.state);
+      return true;
+    } catch (e) {
+      if (e.status) {
+        toast(e.message);
+      } else {
+        setOnline(false);
+        toast("连不上服务器，检查网络");
+      }
+      return false;
+    } finally {
+      state.busy = false;
+    }
+  }
+
+  /* ---------- 计算 ---------- */
+
+  function stockOf() {
+    var map = {};
+    state.items.forEach(function (it) { map[it.id] = 0; });
+    state.records.forEach(function (r) {
+      if (!(r.itemId in map)) return;
+      map[r.itemId] += (r.type === "in" ? r.qty : -r.qty);
+    });
+    return map;
+  }
+  function itemById(id) {
+    for (var i = 0; i < state.items.length; i++) if (state.items[i].id === id) return state.items[i];
+    return null;
+  }
+  function isLow(it, stock) {
+    var safe = Number(it.safe) || 0;
+    return safe > 0 && stock < safe;
+  }
+
+  /* ---------- 渲染 ---------- */
+
+  function renderSubtitle() {
+    var who = state.user ? "我：<b>" + escapeHtml(state.user) + "</b>" : "<b>点这里填名字</b>";
+    $("subtitle").innerHTML = "共 " + state.items.length + " 种物料 · " + who;
+  }
+
+  function renderStats() {
+    var map = stockOf();
+    var total = 0, low = 0;
+    state.items.forEach(function (it) {
+      var s = map[it.id] || 0;
+      total += s;
+      if (isLow(it, s)) low++;
+    });
+    $("sKinds").textContent = state.items.length;
+    $("sTotal").textContent = fmtQty(total);
+    $("sLow").textContent = low;
+    renderSubtitle();
+  }
+
+  function filteredItems(map) {
+    var q = state.q.trim().toLowerCase();
+    return state.items.filter(function (it) {
+      if (q && (it.code + " " + it.name + " " + (it.spec || "")).toLowerCase().indexOf(q) < 0) return false;
+      if (state.lowOnly && !isLow(it, map[it.id] || 0)) return false;
+      return true;
+    }).sort(function (a, b) {
+      return String(a.code).localeCompare(String(b.code), "zh-Hans-CN");
+    });
+  }
+
+  function renderStock() {
+    var box = $("stockView");
+    var map = stockOf();
+    var list = filteredItems(map);
+
+    if (!state.items.length) {
+      box.innerHTML =
+        '<div class="empty"><div class="big">📦</div>' +
+        "<p>还没有物料<br>先建一个物料档案，再开始入库</p>" +
+        '<button class="btn btn-primary" id="emptyAdd">＋ 新增物料</button>' +
+        '<div style="margin-top:14px"><button class="btn btn-ghost btn-sm" id="importBtn" hidden>从这台设备导入旧数据</button></div></div>';
+      var b = $("emptyAdd");
+      if (b) b.onclick = function () { openItem(null); };
+      var ib = $("importBtn");
+      if (ib) {
+        var old = readLocal();
+        if (old && old.items && old.items.length) {
+          ib.hidden = false;
+          ib.onclick = function () { importLocal(old); };
+        }
+      }
+      return;
+    }
+    if (!list.length) {
+      box.innerHTML = '<div class="empty"><div class="big">🔍</div><p>没有匹配的物料</p></div>';
+      return;
+    }
+
+    var html = '<div class="listbox"><div class="headrow">' +
+      "<div>编码</div><div>名称 / 规格</div><div style=\"text-align:right\">库存</div>" +
+      "<div>状态</div><div style=\"text-align:right\">操作</div></div>";
+
+    list.forEach(function (it) {
+      var s = map[it.id] || 0;
+      var low = isLow(it, s);
+      var tag = s < 0 ? '<span class="tag tag-zero">负库存</span>'
+        : low ? '<span class="tag tag-low">低库存</span>'
+        : '<span class="tag tag-ok">正常</span>';
+      html +=
+        '<div class="row' + (low || s < 0 ? " low" : "") + '" data-id="' + it.id + '">' +
+          '<div class="code">' + escapeHtml(it.code) + "</div>" +
+          '<div class="main"><div class="name">' + escapeHtml(it.name) + "</div>" +
+            '<div class="meta">' + escapeHtml(it.spec || "—") +
+            (Number(it.safe) > 0 ? " · 安全库存 " + fmtQty(Number(it.safe)) : "") + "</div></div>" +
+          '<div class="qty">' + fmtQty(s) + "<small>" + escapeHtml(it.unit || "") + "</small></div>" +
+          '<div class="status">' + tag + "</div>" +
+          '<div class="ops">' +
+            '<button class="in" data-act="in">入库</button>' +
+            '<button class="out" data-act="out">出库</button>' +
+            '<button class="edit" data-act="edit">编辑</button>' +
+          "</div></div>";
+    });
+    html += "</div>";
+    box.innerHTML = html;
+
+    box.querySelectorAll(".row").forEach(function (row) {
+      var id = row.getAttribute("data-id");
+      row.querySelectorAll("button[data-act]").forEach(function (btn) {
+        btn.onclick = function () {
+          var act = btn.getAttribute("data-act");
+          if (act === "edit") openItem(id);
+          else openMove(id, act);
+        };
+      });
+    });
+  }
+
+  function renderFlow() {
+    var box = $("flowView");
+    if (!state.records.length) {
+      box.innerHTML = '<div class="empty"><div class="big">🧾</div><p>还没有出入库记录<br>去「库存」里点入库或出库</p></div>';
+      return;
+    }
+
+    var sorted = state.records.slice().sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+      return b.ts - a.ts;
+    });
+
+    var html = "", pending = "", cur = null;
+    var sumIn = 0, sumOut = 0, cnt = 0;
+
+    function flush() {
+      if (cur) {
+        html += '<div class="dayhd"><span>' + dayLabel(cur) + "</span><span>入 " +
+          fmtQty(sumIn) + " · 出 " + fmtQty(sumOut) + " · " + cnt + " 笔</span></div>" + pending;
+      }
+    }
+
+    sorted.forEach(function (r) {
+      if (r.date !== cur) {
+        flush();
+        cur = r.date;
+        sumIn = 0; sumOut = 0; cnt = 0; pending = "";
+      }
+      var it = itemById(r.itemId);
+      var name = it ? it.name : "（物料已删除）";
+      var unit = it ? (it.unit || "") : "";
+      sumIn += r.type === "in" ? r.qty : 0;
+      sumOut += r.type === "out" ? r.qty : 0;
+      cnt++;
+      pending +=
+        '<div class="flow">' +
+          '<div class="badge ' + r.type + '">' + (r.type === "in" ? "入" : "出") + "</div>" +
+          '<div class="who"><b>' + escapeHtml(name) + "</b><span>" +
+            (r.note ? escapeHtml(r.note) + " · " : "") +
+            escapeHtml(it ? it.code : "") +
+            (r.by ? " · " + escapeHtml(r.by) : "") + "</span></div>" +
+          '<div class="num ' + r.type + '">' + (r.type === "in" ? "+" : "−") + fmtQty(r.qty) + " " + escapeHtml(unit) + "</div>" +
+          '<button class="del" data-id="' + r.id + '" aria-label="删除记录">×</button>' +
+        "</div>";
+    });
+    flush();
+    box.innerHTML = html;
+
+    box.querySelectorAll(".del").forEach(function (btn) {
+      btn.onclick = async function () {
+        var id = btn.getAttribute("data-id");
+        if (!confirm("删除这条出入库记录？库存会跟着变。")) return;
+        var ok = await mutate("/api/moves/" + id, "DELETE");
+        if (ok) toast("已删除，库存已更新");
+      };
+    });
+  }
+
+  function renderAll() {
+    renderStats();
+    if (state.view === "stock") renderStock(); else renderFlow();
+  }
+
+  /* ---------- 名字 ---------- */
+
+  function askName(force) {
+    var v = prompt("你的名字（会记在每条流水上）", state.user || "");
+    if (v === null) return false;
+    v = v.trim().slice(0, 20);
+    if (!v) { toast("名字不能为空"); return false; }
+    state.user = v;
+    try { localStorage.setItem("cangku.user", v); } catch (e) {}
+    renderSubtitle();
+    return true;
+  }
+
+  function ensureName() {
+    if (state.user) return true;
+    return askName(true);
+  }
+
+  /* ---------- 物料 ---------- */
+
+  function openItem(id) {
+    state.editingId = id || null;
+    var it = id ? itemById(id) : null;
+    $("itemTitle").textContent = it ? "编辑物料" : "新增物料";
+    $("fCode").value = it ? it.code : "";
+    $("fName").value = it ? it.name : "";
+    $("fSpec").value = it ? (it.spec || "") : "";
+    $("fUnit").value = it ? (it.unit || "") : "个";
+    $("fSafe").value = it && it.safe ? it.safe : "";
+    $("fInit").value = "";
+    $("fInit").disabled = !!it;
+    $("itemDelete").hidden = !it;
+    $("scrimItem").hidden = false;
+    setTimeout(function () { (it ? $("fName") : $("fCode")).focus(); }, 50);
+  }
+
+  function closeItem() { $("scrimItem").hidden = true; }
+
+  async function submitItem(ev) {
+    ev.preventDefault();
+    var code = $("fCode").value.trim();
+    var name = $("fName").value.trim();
+    if (!code) { toast("编码不能为空"); $("fCode").focus(); return; }
+    if (!name) { toast("名称不能为空"); $("fName").focus(); return; }
+    if (!ensureName()) return;
+
+    var payload = {
+      code: code,
+      name: name,
+      spec: $("fSpec").value.trim(),
+      unit: $("fUnit").value.trim() || "个",
+      safe: Math.max(0, Number($("fSafe").value) || 0),
+      by: state.user
+    };
+
+    var ok;
+    if (state.editingId) {
+      ok = await mutate("/api/items/" + state.editingId, "PUT", payload);
+      if (ok) toast("已更新");
+    } else {
+      payload.init = Math.max(0, Number($("fInit").value) || 0);
+      ok = await mutate("/api/items", "POST", payload);
+      if (ok) toast("已新增 " + name);
+    }
+    if (ok) closeItem();
+  }
+
+  async function deleteItem() {
+    var it = itemById(state.editingId);
+    if (!it) return;
+    var n = state.records.filter(function (r) { return r.itemId === it.id; }).length;
+    if (!confirm("删除「" + it.name + "」？它的 " + n + " 条出入库记录也会一起删掉。")) return;
+    var ok = await mutate("/api/items/" + it.id, "DELETE");
+    if (ok) { closeItem(); toast("已删除"); }
+  }
+
+  /* ---------- 出入库 ---------- */
+
+  function openMove(id, type) {
+    var it = itemById(id);
+    if (!it) return;
+    state.moveItemId = id;
+    var map = stockOf();
+    var s = map[id] || 0;
+    $("moveSub").textContent = it.code + " · " + it.name + (it.spec ? "（" + it.spec + "）" : "");
+    $("moveHint").innerHTML = "当前库存：<b>" + fmtQty(s) + " " + escapeHtml(it.unit || "") + "</b>" +
+      (Number(it.safe) > 0 ? " · 安全库存 " + fmtQty(Number(it.safe)) : "");
+    $("mQty").value = "";
+    $("mNote").value = "";
+    $("mDate").value = today();
+    setMoveType(type);
+    $("scrimMove").hidden = false;
+    setTimeout(function () { $("mQty").focus(); }, 50);
+  }
+
+  function setMoveType(type) {
+    state.moveType = type;
+    $("swIn").setAttribute("aria-selected", String(type === "in"));
+    $("swOut").setAttribute("aria-selected", String(type === "out"));
+    $("moveTitle").textContent = type === "in" ? "入库" : "出库";
+    $("moveSubmit").textContent = type === "in" ? "确认入库" : "确认出库";
+  }
+
+  async function submitMove(ev) {
+    ev.preventDefault();
+    var it = itemById(state.moveItemId);
+    if (!it) return;
+    var qty = Number($("mQty").value);
+    if (!isFinite(qty) || qty <= 0) { toast("数量要大于 0"); $("mQty").focus(); return; }
+    if (!ensureName()) return;
+
+    $("moveSubmit").disabled = true;
+    var ok = await mutate("/api/moves", "POST", {
+      itemId: it.id,
+      type: state.moveType,
+      qty: qty,
+      date: $("mDate").value || today(),
+      note: $("mNote").value.trim(),
+      by: state.user
+    });
+    $("moveSubmit").disabled = false;
+
+    if (ok) {
+      $("scrimMove").hidden = true;
+      toast((state.moveType === "in" ? "入库 " : "出库 ") + fmtQty(qty) + " " + (it.unit || ""));
+    }
+  }
+
+  /* ---------- 导入旧数据 ---------- */
+
+  function readLocal() {
+    try {
+      var raw = localStorage.getItem("cangku.v1");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) { return null; }
+  }
+
+  async function importLocal(old) {
+    if (!confirm("把本机的 " + old.items.length + " 种物料和 " + (old.records || []).length + " 条流水导入服务器？")) return;
+    if (!ensureName()) return;
+    var idmap = {};
+    var done = 0, failed = 0;
+    for (var i = 0; i < old.items.length; i++) {
+      var it = old.items[i];
+      try {
+        var data = await request("/api/items", "POST", {
+          code: it.code, name: it.name, spec: it.spec || "", unit: it.unit || "个",
+          safe: Number(it.safe) || 0, init: 0, by: state.user
+        });
+        idmap[it.id] = data.item.id;
+        done++;
+      } catch (e) { failed++; }
+    }
+    var recs = old.records || [];
+    for (var j = 0; j < recs.length; j++) {
+      var r = recs[j];
+      if (!idmap[r.itemId]) { failed++; continue; }
+      try {
+        await request("/api/moves", "POST", {
+          itemId: idmap[r.itemId], type: r.type, qty: r.qty,
+          date: r.date, note: r.note || "", by: state.user
+        });
+        done++;
+      } catch (e) { failed++; }
+    }
+    await refresh(true);
+    toast("导入完成：" + done + " 条成功" + (failed ? "，" + failed + " 条失败" : ""));
+  }
+
+  /* ---------- 导出 ---------- */
+
+  function exportCsv() {
+    var lines, name;
+    if (state.view === "stock") {
+      var map = stockOf();
+      lines = ["编码,名称,规格,单位,库存,安全库存,状态"];
+      filteredItems(map).forEach(function (it) {
+        var s = map[it.id] || 0;
+        lines.push([it.code, it.name, it.spec || "", it.unit || "", fmtQty(s),
+          fmtQty(Number(it.safe) || 0), s < 0 ? "负库存" : isLow(it, s) ? "低库存" : "正常"]
+          .map(csvCell).join(","));
+      });
+      name = "库存表";
+    } else {
+      lines = ["日期,类型,编码,名称,数量,单位,备注,经办人"];
+      state.records.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; }).forEach(function (r) {
+        var it = itemById(r.itemId);
+        lines.push([r.date, r.type === "in" ? "入库" : "出库", it ? it.code : "",
+          it ? it.name : "", fmtQty(r.qty), it ? (it.unit || "") : "", r.note || "", r.by || ""]
+          .map(csvCell).join(","));
+      });
+      name = "出入库流水";
+    }
+    if (lines.length <= 1) { toast("没有数据可导出"); return; }
+
+    var blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = name + "_" + today() + ".csv";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast("已导出");
+  }
+  function csvCell(v) {
+    var s = String(v == null ? "" : v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  /* ---------- 提示 ---------- */
+
+  var toastTimer = null;
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  /* ---------- 事件 ---------- */
+
+  function switchView(v) {
+    state.view = v;
+    $("tabStock").setAttribute("aria-selected", String(v === "stock"));
+    $("tabFlow").setAttribute("aria-selected", String(v === "flow"));
+    $("stockView").hidden = v !== "stock";
+    $("flowView").hidden = v !== "flow";
+    renderAll();
+  }
+
+  try { state.user = localStorage.getItem("cangku.user") || ""; } catch (e) {}
+
+  $("tabStock").onclick = function () { switchView("stock"); };
+  $("tabFlow").onclick = function () { switchView("flow"); };
+  $("addBtn").onclick = function () { openItem(null); };
+  $("exportBtn").onclick = exportCsv;
+  $("q").oninput = function () { state.q = $("q").value; renderAll(); };
+  $("lowOnly").onclick = function () {
+    state.lowOnly = !state.lowOnly;
+    $("lowOnly").setAttribute("aria-pressed", String(state.lowOnly));
+    renderAll();
+  };
+  $("subtitle").onclick = function () { askName(false); };
+
+  $("itemForm").onsubmit = submitItem;
+  $("itemCancel").onclick = closeItem;
+  $("itemDelete").onclick = deleteItem;
+
+  $("moveForm").onsubmit = submitMove;
+  $("moveCancel").onclick = function () { $("scrimMove").hidden = true; };
+  $("swIn").onclick = function () { setMoveType("in"); };
+  $("swOut").onclick = function () { setMoveType("out"); };
+
+  [$("scrimItem"), $("scrimMove")].forEach(function (scrim) {
+    scrim.addEventListener("click", function (ev) {
+      if (ev.target === scrim) scrim.hidden = true;
+    });
+  });
+  document.addEventListener("keydown", function (ev) {
+    if (ev.key === "Escape") {
+      $("scrimItem").hidden = true;
+      $("scrimMove").hidden = true;
+    }
+  });
+
+  renderAll();
+  refresh(true);
+
+  setInterval(function () {
+    if (!document.hidden) refresh(false);
+  }, 4000);
+
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden) refresh(false);
+  });
+})();
+</script>
+</body>
+</html>
