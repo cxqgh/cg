@@ -225,7 +225,45 @@ function deleteMove(id) {
 
 function authorized(req) {
   if (!ACCESS_CODE) return true;
-  return req.headers["x-access-code"] === ACCESS_CODE;
+  const given = String(req.headers["x-access-code"] || "");
+  const a = Buffer.from(given);
+  const b = Buffer.from(ACCESS_CODE);
+  if (a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/* 失败次数限制：同一 IP 5 分钟内最多试 6 次 */
+const AUTH_FAILS = new Map();
+const AUTH_WINDOW_MS = 5 * 60 * 1000;
+const AUTH_MAX_FAILS = 6;
+
+function clientIp(req) {
+  const fwd = req.headers["x-forwarded-for"];
+  if (fwd) return String(fwd).split(",")[0].trim();
+  return req.socket.remoteAddress || "unknown";
+}
+
+function authBlocked(ip) {
+  const rec = AUTH_FAILS.get(ip);
+  if (!rec) return false;
+  if (Date.now() - rec.first > AUTH_WINDOW_MS) {
+    AUTH_FAILS.delete(ip);
+    return false;
+  }
+  return rec.count >= AUTH_MAX_FAILS;
+}
+
+function recordAuthFail(ip) {
+  const rec = AUTH_FAILS.get(ip);
+  if (!rec || Date.now() - rec.first > AUTH_WINDOW_MS) {
+    AUTH_FAILS.set(ip, { first: Date.now(), count: 1 });
+  } else {
+    rec.count += 1;
+  }
 }
 
 async function handleApi(req, res, pathname) {
@@ -277,7 +315,9 @@ const MIME = {
   ".json": "application/json; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
-  ".ico": "image/x-icon"
+  ".ico": "image/x-icon",
+  ".zip": "application/zip",
+  ".txt": "text/plain; charset=utf-8"
 };
 
 function serveStatic(req, res, pathname) {
@@ -310,9 +350,20 @@ const server = http.createServer((req, res) => {
     return sendJson(res, 400, { ok: false, error: "非法路径" });
   }
 
-  if (!authorized(req)) return sendJson(res, 401, { ok: false, error: "访问码错误" });
-
   if (pathname.startsWith("/api/")) {
+    if (!authorized(req)) {
+      // 只有「带了错误访问码」才计入失败次数；没带码不算（否则登录页轮询会把自己锁死）
+      const given = String(req.headers["x-access-code"] || "");
+      const ip = clientIp(req);
+      if (given) {
+        if (authBlocked(ip)) {
+          return sendJson(res, 429, { ok: false, error: "尝试次数过多，请 5 分钟后再试" });
+        }
+        recordAuthFail(ip);
+        return sendJson(res, 401, { ok: false, error: "访问码错误" });
+      }
+      return sendJson(res, 401, { ok: false, error: "需要访问码" });
+    }
     handleApi(req, res, pathname).catch((err) => {
       console.error("[api]", err);
       sendJson(res, 500, { ok: false, error: "服务器内部错误" });
