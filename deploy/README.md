@@ -51,26 +51,26 @@ ssh root@你的服务器公网IP
 在**你电脑**的 PowerShell 里执行（注意是本地终端，不是服务器里）：
 
 ```powershell
-cd "D:\Users\Q\Documents\deepseek-harness\default-workspace\我的测试"
-scp -r cangku-server root@你的服务器IP:/opt/
+cd "D:\Users\Q\Documents\GitHub"
+scp -r cg root@你的服务器IP:/opt/
 ```
 
-这会把整个目录放到服务器的 `/opt/cangku-server`。
+这会把整个目录放到服务器的 `/opt/cg`（目录名随意，脚本只认里面的 `server.js`）。
 
 **方法 C：打包上传**
 
 先在本地打包：
 
 ```powershell
-Compress-Archive -Path "cangku-server\*" -DestinationPath "cangku.zip" -Force
+Compress-Archive -Path "cg\*" -DestinationPath "cg.zip" -Force
 ```
 
 然后把 `cangku.zip` 拖到云控制台的「文件上传」，再在服务器上解压：
 
 ```bash
 apt-get install -y unzip
-mkdir -p /opt/cangku-server && cd /opt/cangku-server
-unzip ~/cangku.zip
+mkdir -p /opt/cg && cd /opt/cg
+unzip ~/cg.zip
 ```
 
 ---
@@ -78,7 +78,7 @@ unzip ~/cangku.zip
 ## 四、一键安装
 
 ```bash
-cd /opt/cangku-server
+cd /opt/cg
 sudo ACCESS_CODE=你的访问码 PORT=8766 bash deploy/install.sh
 ```
 
@@ -126,7 +126,7 @@ curl -s http://127.0.0.1:8766/api/health
 把本地 `data.json` 传上去：
 
 ```powershell
-scp "D:\Users\Q\Documents\deepseek-harness\default-workspace\我的测试\cangku-server\data.json" root@你的IP:/opt/cangku/
+scp "D:\Users\Q\Documents\GitHub\cg\data.json" root@你的IP:/opt/cangku/
 ```
 
 然后在服务器上：

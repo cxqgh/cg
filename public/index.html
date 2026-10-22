@@ -831,6 +831,9 @@
   }
   function csvCell(v) {
     var s = String(v == null ? "" : v);
+    // CSV 注入：Excel/WPS 会把 = + - @ 开头的单元格当公式执行。
+    // 纯数字（含负数，如 -3）要放行，否则库存导出会多出一个单引号。
+    if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s;
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
 

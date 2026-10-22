@@ -17,9 +17,9 @@
 
 部署到云服务器（Ubuntu 22.04 / 24.04）
 ------------------------------------
-  上传本目录到服务器，例如 /opt/cangku-server
+  上传本目录到服务器，例如 /opt/cg
   然后执行：
-    cd /opt/cangku-server
+    cd /opt/cg
     sudo ACCESS_CODE=你的密码 bash deploy/install.sh
 
   最后到云控制台「安全组/防火墙」放行 TCP 8766，

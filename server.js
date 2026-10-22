@@ -57,6 +57,7 @@ function sendJson(res, code, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(code, {
     "content-type": "application/json; charset=utf-8",
+    "x-content-type-options": "nosniff",
     "cache-control": "no-store"
   });
   res.end(body);
@@ -216,9 +217,31 @@ function createMove(body) {
 function deleteMove(id) {
   const rec = db.records.find((r) => r.id === id);
   if (!rec) return { status: 404, error: "记录不存在" };
+
+  // 删掉一条入库会让库存减少；如果减完变负，说明有出库记录依赖它，
+  // 直接删会留下对不上账的负库存，所以在这里拦住。
+  if (rec.type === "in") {
+    const stock = stockMap().get(rec.itemId) || 0;
+    const after = round(stock - rec.qty);
+    if (after < -1e-9) {
+      const item = db.items.find((x) => x.id === rec.itemId);
+      const unit = item ? item.unit : "";
+      return {
+        status: 400,
+        error:
+          "删掉这条入库会让库存变成 " + fmtNum(after) + " " + unit +
+          "（当前 " + fmtNum(stock) + " " + unit + "），请先把依赖它的出库记录删掉"
+      };
+    }
+  }
+
   db.records = db.records.filter((r) => r.id !== id);
   persist();
   return { status: 200, data: { ok: true, state: db } };
+}
+
+function fmtNum(n) {
+  return String(Math.round(n * 1000) / 1000);
 }
 
 /* ---------------- 路由 ---------------- */
@@ -240,11 +263,27 @@ function authorized(req) {
 const AUTH_FAILS = new Map();
 const AUTH_WINDOW_MS = 5 * 60 * 1000;
 const AUTH_MAX_FAILS = 6;
+const AUTH_CLEANUP_THRESHOLD = 500;
+
+function isLoopback(ip) {
+  return ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+}
 
 function clientIp(req) {
-  const fwd = req.headers["x-forwarded-for"];
-  if (fwd) return String(fwd).split(",")[0].trim();
-  return req.socket.remoteAddress || "unknown";
+  const remote = req.socket.remoteAddress || "";
+
+  // X-Forwarded-For 是客户端能随意伪造的请求头，直接采信等于把限流交给攻击者：
+  // 每次换个头就能换一个桶，爆破次数限制形同虚设。
+  // 只有当连接确实来自本机的反向代理（Caddy/Nginx）时才采信，
+  // 这时代理会把真实客户端 IP 追加在末尾，所以取最后一个而不是第一个。
+  if (isLoopback(remote)) {
+    const fwd = req.headers["x-forwarded-for"];
+    if (fwd) {
+      const parts = String(fwd).split(",").map((s) => s.trim()).filter(Boolean);
+      if (parts.length) return parts[parts.length - 1];
+    }
+  }
+  return remote || "unknown";
 }
 
 function authBlocked(ip) {
@@ -258,9 +297,18 @@ function authBlocked(ip) {
 }
 
 function recordAuthFail(ip) {
+  const now = Date.now();
+
+  // AUTH_FAILS 只按 IP 增长，不清理会一直占内存，这里顺手扫掉过期项
+  if (AUTH_FAILS.size > AUTH_CLEANUP_THRESHOLD) {
+    for (const [k, v] of AUTH_FAILS) {
+      if (now - v.first > AUTH_WINDOW_MS) AUTH_FAILS.delete(k);
+    }
+  }
+
   const rec = AUTH_FAILS.get(ip);
-  if (!rec || Date.now() - rec.first > AUTH_WINDOW_MS) {
-    AUTH_FAILS.set(ip, { first: Date.now(), count: 1 });
+  if (!rec || now - rec.first > AUTH_WINDOW_MS) {
+    AUTH_FAILS.set(ip, { first: now, count: 1 });
   } else {
     rec.count += 1;
   }
@@ -322,20 +370,28 @@ const MIME = {
 
 function serveStatic(req, res, pathname) {
   let rel = pathname === "/" ? "/index.html" : pathname;
-  const filePath = path.join(PUBLIC_DIR, rel);
-  const resolved = path.resolve(filePath);
-  if (!resolved.startsWith(path.resolve(PUBLIC_DIR))) {
+  const resolved = path.resolve(path.join(PUBLIC_DIR, rel));
+
+  // 用 relative 判断而不是 startsWith：
+  // startsWith 会把 /opt/cangku/public-secrets 误判成在 /opt/cangku/public 里面
+  const inside = path.relative(path.resolve(PUBLIC_DIR), resolved);
+  if (inside.startsWith("..") || path.isAbsolute(inside)) {
     return sendJson(res, 403, { ok: false, error: "禁止访问" });
   }
+
   fs.readFile(resolved, (err, data) => {
     if (err) {
-      res.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+      res.writeHead(404, {
+        "content-type": "text/plain; charset=utf-8",
+        "x-content-type-options": "nosniff"
+      });
       res.end("页面不存在");
       return;
     }
     const ext = path.extname(resolved).toLowerCase();
     res.writeHead(200, {
       "content-type": MIME[ext] || "application/octet-stream",
+      "x-content-type-options": "nosniff",
       "cache-control": ext === ".html" ? "no-cache" : "public, max-age=3600"
     });
     res.end(data);
@@ -381,8 +437,18 @@ server.listen(PORT, "0.0.0.0", () => {
   console.log("  访问码: " + (ACCESS_CODE ? "已启用" : "未启用（局域网内任何人可访问）"));
 });
 
-process.on("SIGINT", () => {
+function shutdown(sig) {
   try { persist(); } catch {}
-  console.log("\n已保存并退出");
+  console.log("\n收到 " + sig + "，已保存并退出");
   process.exit(0);
+}
+
+// systemd stop 发的是 SIGTERM，只监听 SIGINT 的话正常停止走不到保存逻辑
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+// Node 15+ 默认遇到未捕获的 Promise 拒绝会直接退出，
+// 这里先打日志，避免线上只看到进程没了却不知道原因
+process.on("unhandledRejection", (err) => {
+  console.error("[unhandledRejection]", err);
 });

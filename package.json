@@ -1,0 +1,13 @@
+{
+  "name": "cangku",
+  "version": "1.0.0",
+  "private": true,
+  "description": "仓库管理（出入库）系统：Node 零依赖服务端 + 单页前端",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

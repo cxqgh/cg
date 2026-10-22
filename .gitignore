@@ -1,0 +1,11 @@
+# 运行时数据（含全部业务数据，绝不入库）
+data.json
+data.json.bak
+data.json.tmp
+backups/
+
+# 依赖与编辑器
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
