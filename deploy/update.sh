@@ -5,13 +5,18 @@
 #   bash deploy/update.sh              # 源码目录就是本仓库时直接跑
 #   bash deploy/update.sh /opt/cg      # 指定源码目录
 #
+# 服务不在默认位置时（用 systemctl cat cangku 看 WorkingDirectory）：
+#   APP_DIR=/srv/cangku bash deploy/update.sh
+#
 # 与 install.sh 的区别：
 #   install.sh 会重写 systemd 配置，重跑时若忘了带 ACCESS_CODE，访问码会被清空；
 #   update.sh 只替换程序与前端，保留现有服务配置和全部数据，适合日常更新。
 set -euo pipefail
 
-APP_DIR="/opt/cangku"
-SERVICE="cangku"
+# 目标目录与服务名，默认值不够用时可用环境变量覆盖：
+#   APP_DIR=/srv/cangku SERVICE=cangku bash deploy/update.sh
+APP_DIR="${APP_DIR:-/opt/cangku}"
+SERVICE="${SERVICE:-cangku}"
 
 log() { printf "\n\033[1;36m==> %s\033[0m\n" "$*"; }
 die() { printf "\n\033[1;31m错误：%s\033[0m\n" "$*" >&2; exit 1; }

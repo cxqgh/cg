@@ -1,0 +1,2 @@
+# Shell 脚本必须用 LF：CRLF 到 Linux 上会报 "bad interpreter" 或命令末尾带 \r 而失败
+*.sh text eol=lf
